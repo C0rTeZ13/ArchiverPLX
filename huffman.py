@@ -1,10 +1,6 @@
 import heapq
 from heapq import heappop, heappush
-
-
-def is_leaf(root):
-    return root.left is None and root.right is None
-
+from collections import Counter
 
 # Узел дерева
 class Node:
@@ -14,117 +10,115 @@ class Node:
         self.left = left
         self.right = right
 
-    # Переопределить функцию `__lt__()`, чтобы заставить класс `Node` работать с приоритетной очередью.
-    # таким образом, что элемент с наивысшим приоритетом имеет наименьшую частоту
     def __lt__(self, other):
         return self.freq < other.freq
 
+def build_huffman_tree(freq):
+    pq = [Node(byte, freq) for byte, freq in freq.items()]  # Создание приоритетной очереди
 
-# Пройти по дереву Хаффмана и сохранить коды Хаффмана в словаре
-def encode(root, s, huffman_code):
-    if root is None:
-        return
-
-    # обнаружил листовой узел
-    if is_leaf(root):
-        huffman_code[root.ch] = s if len(s) > 0 else '1'
-
-    encode(root.left, s + '0', huffman_code)
-    encode(root.right, s + '1', huffman_code)
-
-
-# Пройти по дереву Хаффмана и декодировать закодированную строку
-def decode(root, index, s):
-    if root is None:
-        return index
-
-    # обнаружил листовой узел
-    if is_leaf(root):
-        print(root.ch, end='')
-        return index
-
-    index = index + 1
-    root = root.left if s[index] == '0' else root.right
-    return decode(root, index, s)
-
-
-# строит дерево Хаффмана и декодирует заданный входной текст
-def build_huffman_tree(text):
-    # Базовый случай: пустая строка
-    if len(text) == 0:
-        return
-
-    # подсчитывает частоту появления каждого символа
-    # и сохраните его в словаре
-    freq = {byte: text.count(byte) for byte in set(text)}
-
-    # Создайте приоритетную очередь для хранения активных узлов дерева Хаффмана.
-    pq = [Node(byte, freq) for byte, freq in freq.items()]
     heapq.heapify(pq)
-
-    # делать до тех пор, пока в queue не окажется более одного узла
     while len(pq) != 1:
-        # Удалить два узла с наивысшим приоритетом
-        # (самая низкая частота) из queue
-
         left = heappop(pq)
         right = heappop(pq)
-
-        # создает новый внутренний узел с этими двумя узлами в качестве дочерних и
-        # с частотой, равной сумме частот двух узлов.
-        # Добавьте новый узел в приоритетную очередь.
-
         total = left.freq + right.freq
         heappush(pq, Node(None, total, left, right))
 
-    # `root` хранит указатель на корень дерева Хаффмана.
-    root = pq[0]
-
-    # проходит по дереву Хаффмана и сохраняет коды Хаффмана в словаре.
-    huffmanCode = {}
-    encode(root, '', huffmanCode)
-    # записать массив частот
-    dataCoded = b''
-    for symbol in range(256):
-        if symbol in freq:
-            dataCoded += int(freq[symbol]).to_bytes(1, 'big')
-        else:
-            dataCoded += b'\x00'
-
-    # записать закодированное сообщение
-    for c in text:
-        dataCoded += int(huffmanCode.get(c)).to_bytes(1, 'big')
-
-    if is_leaf(root):
-        # Особый случай: для ввода типа a, aa, aaa и т. д.
-        while root.freq > 0:
-            print(root.ch, end='')
-            root.freq = root.freq - 1
-    return dataCoded
+    return pq[0]
 
 
-def huffman_decode(data):
-    freq = b''
-    dataDecoded = b''
+def huffman_decode(data, data_size):
+    freq_str = b''
+    encoded_data = b''
     for symbol_count in range(len(data)):
         if symbol_count < 256:
-            freq += int(data[symbol_count]).to_bytes(1, "big")
+            freq_str += int(data[symbol_count]).to_bytes(1, "big")  # Строка с частотами
         else:
-            dataDecoded += int(data[symbol_count]).to_bytes(1, "big")
+            encoded_data += int(data[symbol_count]).to_bytes(1, "big")  # Закодированная информация
 
+    data_size = int.from_bytes(data_size, 'big')
     symbol_pos = 0
-    freq_dict = {}
-    for symbol in freq:
-        freq_dict[symbol_pos] = symbol
+    freq = {}
+    for symbol in freq_str:
+        if symbol != 0:
+            freq[symbol_pos] = symbol
         symbol_pos += 1
-    print(freq_dict.items())
-    return dataDecoded
+
+    root = build_huffman_tree(freq)
+    decoded_data = bytearray()
+    current_node = root
+
+    # Проходим по каждому биту в закодированных данных
+    for byte in encoded_data:
+        # Перебираем биты в байте
+        for i in range(8):
+            if len(decoded_data) == data_size:
+                break
+            bit = (byte >> (7 - i)) & 1  # Получаем i-й бит
+            if bit == 0:
+                current_node = current_node.left  # Идем влево при 0
+            else:
+                current_node = current_node.right  # Идем вправо при 1
+
+            if current_node.left is None and current_node.right is None:  # Дошли до листа, восстанавливаем символ
+                decoded_data += current_node.ch.to_bytes(1, 'big')
+                current_node = root  # Сбрасываем текущий узел к корню для нового символа
+
+    return bytes(decoded_data)
+
+def normalize(freq):
+    new_freq = dict()
+    for f in freq:
+        if freq[f] > 0:
+            new_freq[f] = round(((freq[f] - 1) / (max(freq.values()) - 1)) * (255 - 1)) + 1
+    return new_freq
 
 
 def huffman_encode(data_files):
-    dataFilesCoded = list()
+    encoded_data_files = list()
     for i in range(len(data_files)):
         data = data_files[i]
-        dataCoded = build_huffman_tree(data)
-        dataFilesCoded.append(dataCoded)
-    return dataFilesCoded
+        freq = {byte: data.count(byte) for byte in set(data)}  # Подсчет частот символов
+        freq = normalize(freq)
+        root = build_huffman_tree(freq)
+        huffman_code = {}
+
+        def encode(root, s):
+            if root is None:
+                return
+            if root.ch is not None:
+                huffman_code[root.ch] = s
+            encode(root.left, s + '0')
+            encode(root.right, s + '1')
+
+        encode(root, '')
+
+        # Подготовим данные для записи
+        encoded_data = bytearray()
+        for symbol in range(256):
+            if symbol in freq:
+                encoded_data.append(freq[symbol])
+            else:
+                encoded_data.append(0x00)
+
+        # Записываем закодированные данные побитово
+        current_byte = 0  # Текущий байт, который будем заполнять
+        bit_position = 0  # Позиция текущего бита в байте
+
+        for c in data:
+            code = huffman_code[c]
+            for bit in code:
+                if bit == '1':
+                    current_byte |= (1 << (7 - bit_position))
+
+                bit_position += 1
+                if bit_position == 8:
+                    encoded_data.append(current_byte)
+                    current_byte = 0
+                    bit_position = 0
+
+        # Добавляем последний байт (если есть неиспользованные биты)
+        if bit_position > 0:
+            encoded_data.append(current_byte)
+
+        encoded_data_files.append(encoded_data)
+    return encoded_data_files
