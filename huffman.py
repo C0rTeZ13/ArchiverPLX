@@ -73,52 +73,50 @@ def normalize(freq):
     return new_freq
 
 
-def huffman_encode(data_files):
-    encoded_data_files = list()
-    for i in range(len(data_files)):
-        data = data_files[i]
-        freq = {byte: data.count(byte) for byte in set(data)}  # Подсчет частот символов
-        freq = normalize(freq)
-        root = build_huffman_tree(freq)
-        huffman_code = {}
+def huffman_encode(data):
+    freq = {byte: data.count(byte) for byte in set(data)}  # Подсчет частот символов
+    freq = normalize(freq)
+    root = build_huffman_tree(freq)
+    huffman_code = {}
 
-        def encode(root, s):
-            if root is None:
-                return
-            if root.ch is not None:
-                huffman_code[root.ch] = s
-            encode(root.left, s + '0')
-            encode(root.right, s + '1')
+    def encode(root, s):
+        if root is None:
+            return
+        if root.ch is not None:
+            huffman_code[root.ch] = s
+        encode(root.left, s + '0')
+        encode(root.right, s + '1')
 
-        encode(root, '')
+    encode(root, '')
 
-        # Подготовим данные для записи
-        encoded_data = bytearray()
-        for symbol in range(256):
-            if symbol in freq:
-                encoded_data.append(freq[symbol])
-            else:
-                encoded_data.append(0x00)
+    # Подготовим данные для записи
+    encoded_data = bytearray()
+    for symbol in range(256):
+        if symbol in freq:
+            encoded_data.append(freq[symbol])
+        else:
+            encoded_data.append(0x00)
 
-        # Записываем закодированные данные побитово
-        current_byte = 0  # Текущий байт, который будем заполнять
-        bit_position = 0  # Позиция текущего бита в байте
+    # Записываем закодированные данные побитово
+    current_byte = 0  # Текущий байт, который будем заполнять
+    bit_position = 0  # Позиция текущего бита в байте
 
-        for c in data:
-            code = huffman_code[c]
-            for bit in code:
-                if bit == '1':
-                    current_byte |= (1 << (7 - bit_position))
+    for c in data:
+        code = huffman_code[c]
+        for bit in code:
+            if bit == '1':
+                current_byte |= (1 << (7 - bit_position))
 
-                bit_position += 1
-                if bit_position == 8:
-                    encoded_data.append(current_byte)
-                    current_byte = 0
-                    bit_position = 0
+            bit_position += 1
+            if bit_position == 8:
+                encoded_data.append(current_byte)
+                current_byte = 0
+                bit_position = 0
 
-        # Добавляем последний байт (если есть неиспользованные биты)
-        if bit_position > 0:
-            encoded_data.append(current_byte)
-
-        encoded_data_files.append(encoded_data)
-    return encoded_data_files
+    # Добавляем последний байт (если есть неиспользованные биты)
+    if bit_position > 0:
+        encoded_data.append(current_byte)
+    if len(data) > len(encoded_data):
+        return encoded_data
+    else:
+        return data
