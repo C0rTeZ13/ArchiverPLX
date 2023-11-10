@@ -86,10 +86,9 @@ def file_decode(archive_name):
     if archiveSignature != b'\xff\xbb\xaa\xcc':
         if possible_algo == b'\x00\x00':
             start_data = b''
-            count = 6
+            archive.seek(5)
             while byte := archive.read(1):
                 start_data = archive.read()
-                count += 1
             archive.close()
             archive = open(archive_name, 'wb')
             archive.write(start_data)
@@ -98,10 +97,9 @@ def file_decode(archive_name):
             exit()
         if possible_algo == b'\x00\x01':
             start_data = b''
-            count = 6
+            archive.seek(5)
             while byte := archive.read(1):
                 start_data = archive.read()
-                count += 1
             archive.close()
             archive = open(archive_name, 'wb')
             archive.write(huffman_decode(start_data, possible_size))
