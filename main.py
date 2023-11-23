@@ -1,7 +1,9 @@
 import os.path
 import struct
+from arithmetic_compress import *
+from arithmetic_decompress import *
 from huffman import *
-from file_encode_sum import*
+from file_encode_sum import *
 
 
 def file_encode():
@@ -33,7 +35,7 @@ def file_encode():
             else:
                 algorythmCode = b'\x00\x01'
         if check == '2':
-            data_file_coded = data_files[i]  # Сжатие файла целочисленным интервальным методом
+            data_file_coded = arithmetic_compress(fileNames[i])  # Сжатие файла целочисленным интервальным методом
             if data_file_coded == data_files[i]:
                 algorythmCode = b'\x00\x00'
             else:
@@ -106,6 +108,21 @@ def file_decode(archive_name):
             archive.close()
             file_decode(archive_name)
             exit()
+        if possible_algo == b'\x00\x02':
+            start_data = b''
+            archive.seek(5)
+            while byte := archive.read(1):
+                start_data = archive.read()
+            archive.close()
+            tempfile_str = "new_tempfile"
+            with open(tempfile_str, 'wb') as temp:
+                temp.write(start_data)
+            archive = open(archive_name, 'wb')
+            archive.write(arithmetic_decompress(start_data))
+            archive.close()
+            os.remove(tempfile_str)
+            file_decode(archive_name)
+            exit()
         elif possible_algo != b'\x00\x00' and possible_algo != b'\x00\x01':
             print("Сигнатура архива неверна или отсутствует.\nПрекращение работы программы.")
             exit()
@@ -138,7 +155,7 @@ def file_decode(archive_name):
         if algorythmCode == b'\x00\x01':
             fileDataDecoded = huffman_decode(fileData, file_default_size_bytes)
         if algorythmCode == b'\x00\x02':
-            fileDataDecoded = fileData
+            fileDataDecoded = arithmetic_decompress(fileData)
         elif algorythmCode != b'\x00\x01' and algorythmCode != b'\x00\x02':
             fileDataDecoded = fileData
         file = open(fileName.decode('utf-8').replace('\00', ''), 'wb')

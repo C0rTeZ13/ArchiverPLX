@@ -1,5 +1,6 @@
 import os
 
+from arithmetic_compress import *
 from huffman import huffman_encode
 
 
@@ -51,7 +52,11 @@ def file_encode_sum():
         else:
             algorythmCode_sum = b'\x00\x01'
     if check == '2':
-        data_file_coded_sum = end_data  # Сжатие файла целочисленным интервальным методом
+        tempfile_str = "new_tempfile"
+        with open(tempfile_str, "wb") as temp:
+            temp.write(end_data)
+        data_file_coded_sum = arithmetic_compress(tempfile_str)  # Сжатие файла целочисленным интервальным методом
+        os.remove(tempfile_str)
         if data_file_coded_sum == end_data:
             algorythmCode_sum = b'\x00\x00'
         else:

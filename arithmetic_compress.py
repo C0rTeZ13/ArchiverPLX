@@ -1,10 +1,11 @@
 import contextlib, sys
+import os
+
 import arithmeticcoding
 
 
-def main():
-    inputfile = "1.txt"
-    outputfile = "output"
+def arithmetic_compress(inputfile):
+    outputfile = "tempfile"
 
     freqs = get_frequencies(inputfile)
     freqs.increment(256)
@@ -13,7 +14,12 @@ def main():
             contextlib.closing(arithmeticcoding.BitOutputStream(open(outputfile, "wb"))) as bitout:
         write_frequencies(bitout, freqs)
         compress(freqs, inp, bitout)
-
+    with open(outputfile, "rb") as out:
+        output = b''
+        while byte := out.read(1):
+            output += byte
+    os.remove(outputfile)
+    return output
 
 def get_frequencies(filepath):
     freqs = arithmeticcoding.SimpleFrequencyTable([0] * 257)
@@ -45,8 +51,3 @@ def compress(freqs, inp, bitout):
 def write_int(bitout, numbits, value):
     for i in reversed(range(numbits)):
         bitout.write((value >> i) & 1)
-
-
-# Main launcher
-if __name__ == "__main__":
-    main()

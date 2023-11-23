@@ -1,15 +1,24 @@
+import os
 import sys
 import arithmeticcoding
 
 
-def main():
+def arithmetic_decompress(input):
     inputfile = "output"
-    outputfile = "2test.png"
-
+    outputfile = "tempfile"
+    with open(inputfile, "wb") as inp:
+        inp.write(input)
     with open(outputfile, "wb") as out, open(inputfile, "rb") as inp:
         bitin = arithmeticcoding.BitInputStream(inp)
         freqs = read_frequencies(bitin)
         decompress(freqs, bitin, out)
+    with open(outputfile, "rb") as out:
+        output = b''
+        while byte := out.read(1):
+            output += byte
+    os.remove(outputfile)
+    os.remove(inputfile)
+    return output
 
 
 def read_frequencies(bitin):
@@ -31,7 +40,3 @@ def decompress(freqs, bitin, out):
         if symbol == 256:
             break
         out.write(bytes((symbol,)))
-
-
-if __name__ == "__main__":
-    main()
